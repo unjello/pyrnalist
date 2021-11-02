@@ -1,1 +1,1 @@
-from pyrnalist import report, create_report
+from .pyrnalist import create_reporter, report
