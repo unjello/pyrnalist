@@ -131,6 +131,12 @@ class BaseReporter:
         reporters.add(spinner)
         return SpinnerReporter(spinner, reporters)
 
+    def _get_emoji(self, emoji):
+        if self.is_silent or not self.emoji:
+            return ""
+
+        return emoji
+
     def _log(
         self,
         text,
@@ -166,6 +172,17 @@ class ConsoleReporter(BaseReporter):
             file=sys.stderr,
         )
 
+    def header(self, name, command=None, version=None):
+        command = f" {command}" if command else ""
+        version = f" v{version}" if version else ""
+        self.log(Style.BRIGHT + Fore.WHITE + f"{name}{command}{version}")
+
+    def footer(self):
+        total_time = get_uptime()
+        emoji = self._get_emoji("✨")
+        emoji = f"{emoji} " if emoji else ""
+        self.log(f"{emoji}Done in {total_time}s")
+
     def info(self, text):
         self._log_category("info", text, style=Fore.BLUE)
 
@@ -196,6 +213,8 @@ report = create_reporter()
 if __name__ == "__main__":
     import time
 
+    report.header("pyrnalist", version="0.0.2")
+
     report.info("Please wait while I fetch something for you.")
     report.warn("It might take a little while though.")
 
@@ -208,3 +227,5 @@ if __name__ == "__main__":
     time.sleep(1)
     report.success("Done!")
     spinner.end()
+
+    report.footer()

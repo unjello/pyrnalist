@@ -14,20 +14,19 @@ Yurnalist can be used to report many different things besides simple messages.
 
 * log, info, warn, succes, error & command messages
 * activity spinners
+* emojis
 * process steps
 * lists
+* program header & footer
 
 ### Missing features of Yournalist
 
 * progress bars
 * object inspection
-* emojis
 * trees
 * tables
 * user question
 * user select
-* program header & footer
-
 
 ## Install
 
@@ -43,6 +42,8 @@ Here is an example showing a combination of different reporter API functions.
 from pyrnalist import report
 import time
 
+report.header("pyrnalist", version="0.0.2")
+
 report.info("Please wait while I fetch something for you.")
 report.warn("It might take a little while though.")
 
@@ -55,6 +56,8 @@ spinner.tick("Almost there...")
 time.sleep(1)
 report.success("Done!")
 spinner.end()
+
+report.footer()
 ```
 
 ## Configuration
