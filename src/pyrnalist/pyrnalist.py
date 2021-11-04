@@ -26,7 +26,6 @@ class NullSpinnerReporter:
     def end(self):
         pass
 
-
 class SpinnerReporter:
     def __init__(self, spinner, reporters):
         self.reporters = reporters
@@ -108,14 +107,62 @@ class ConsoleSpinner:
     def set_text(self, text):
         self.text.value = text
 
+def progress_render_thread(current, total, delay, chars):
+    while True:
+        columns = os.get_terminal_size().columns
+        ratio = current.value / total
+        ratio = min(max(ratio, 0), 1)
+        stat = f' {current.value}/{total}'
+        available_space = max(0, columns - len(stat) - 3)
+        width = min(total, available_space)
+        complete_length = round(width * ratio)
+        complete = chars[0] * complete_length
+        incomplete = chars[1] * (width - complete_length)
+        bar = f'[{complete}{incomplete}]{stat}'
+        print(f"\r{bar}", end="", flush=True)
+        time.sleep(delay)
+
+BARS = [['#', '-']]
+class ProgressBar:
+    def __init__(self, steps_count):
+        self.total = steps_count
+        self.delay = 0.06
+        self.chars = BARS[0]
+        self.manager = multiprocessing.Manager()
+        self.current = self.manager.Value(ctypes.c_int64, 0)
+
+    def start(self):
+        self.__thread = multiprocessing.Process(
+            target=progress_render_thread,
+            args=(
+                self.current,
+                self.total,
+                self.delay,
+                self.chars
+            ),
+        )
+        self.__thread.start()
+
+    def tick(self):
+        if self.current.value >= self.total:
+            return
+        
+        self.current.value += 1
+
+
+    def stop(self):
+        self.__thread.terminate()
+
 
 class BaseReporter:
-    def __init__(self, verbose=True, silent=False, emoji=True):
+    def __init__(self, verbose=True, silent=False, emoji=True, no_progress=False):
         self.is_verbose = verbose
         self.is_silent = silent
         self.emoji = emoji
+        self.no_progess = no_progress
         self._log_category_size = 0
         self._spinners = set()
+        self._progress_bar = None
 
     def verbose(self, text):
         if self.is_verbose:
@@ -126,10 +173,31 @@ class BaseReporter:
             return NullSpinnerReporter()
 
         reporters = self._spinners
-        spinner = ConsoleSpinner()
+        spinner = self._get_spinner()
         spinner.start()
         reporters.add(spinner)
         return SpinnerReporter(spinner, reporters)
+
+    def progress(self, steps_count):
+        def null_progress_tick():
+            pass
+
+        if self.no_progess or steps_count <= 0:
+            return null_progress_tick
+
+        if self.is_silent:
+            return null_progress_tick
+
+        self._stop_progress()
+
+        self._progress_bar = ProgressBar(steps_count)
+        self._progress_bar.start()
+
+        return lambda: self._progress_bar.tick()
+
+    def _stop_progress(self):
+        if self._progress_bar:
+            self._progress_bar.stop()
 
     def _get_emoji(self, emoji):
         if self.is_silent or not self.emoji:
@@ -150,8 +218,8 @@ class BaseReporter:
 
 
 class ConsoleReporter(BaseReporter):
-    def __init__(self, verbose=True, silent=False, emoji=True):
-        BaseReporter.__init__(self, verbose, silent, emoji)
+    def __init__(self, verbose=True, silent=False, emoji=True, no_progress=False):
+        BaseReporter.__init__(self, verbose, silent, emoji, no_progress)
 
     def list(self, title, items):
         self._log_category("list", title, style=Fore.LIGHTMAGENTA_EX + Style.BRIGHT)
@@ -178,6 +246,7 @@ class ConsoleReporter(BaseReporter):
         self.log(Style.BRIGHT + Fore.WHITE + f"{name}{command}{version}")
 
     def footer(self):
+        self._stop_progress()
         total_time = get_uptime()
         emoji = self._get_emoji("✨")
         emoji = f"{emoji} " if emoji else ""
@@ -201,10 +270,13 @@ class ConsoleReporter(BaseReporter):
         uptime = get_uptime()
         self._log_category("verbose", f"{uptime} {text}", style=Style.DIM)
 
+    def _get_spinner(self):
+        return ConsoleSpinner()
 
-def create_reporter(verbose=True, silent=False, emoji=True):
+
+def create_reporter(verbose=True, silent=False, emoji=True, no_progress=False):
     init(autoreset=True)
-    return ConsoleReporter(verbose, silent, emoji)
+    return ConsoleReporter(verbose, silent, emoji, no_progress)
 
 
 report = create_reporter()
@@ -213,7 +285,7 @@ report = create_reporter()
 if __name__ == "__main__":
     import time
 
-    report.header("pyrnalist", version="0.0.2")
+    report.header("pyrnalist", version="0.0.4")
 
     report.info("Please wait while I fetch something for you.")
     report.warn("It might take a little while though.")
@@ -227,5 +299,15 @@ if __name__ == "__main__":
     time.sleep(1)
     report.success("Done!")
     spinner.end()
+
+    steps = 15
+    tick = report.progress(steps)
+    report.info('🥚 Wait for it...')
+    for x in range(steps):
+        tick()
+        if x % 5 == 0:
+            report.warn("Interrupt.")
+        time.sleep(0.25)
+    report.success('🐣 Tjiep!')
 
     report.footer()

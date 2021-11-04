@@ -18,10 +18,10 @@ Yurnalist can be used to report many different things besides simple messages.
 * process steps
 * lists
 * program header & footer
+* progress bars
 
 ### Missing features of Yournalist
 
-* progress bars
 * object inspection
 * trees
 * tables
@@ -56,6 +56,16 @@ spinner.tick("Almost there...")
 time.sleep(1)
 report.success("Done!")
 spinner.end()
+
+steps = 15
+tick = report.progress(steps)
+report.info('🥚 Wait for it...')
+for x in range(steps):
+    tick()
+    if x % 5 == 0:
+        report.warn("Interrupt.")
+    time.sleep(0.25)
+report.success('🐣 Tjiep!')
 
 report.footer()
 ```
