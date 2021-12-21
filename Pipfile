@@ -1,0 +1,13 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+colorama = ">=0.4"
+psutil = ">=5.8"
+
+[dev-packages]
+
+[requires]
+python_version = "3.8"
