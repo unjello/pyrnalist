@@ -221,12 +221,19 @@ class ConsoleReporter(BaseReporter):
     def __init__(self, verbose=True, silent=False, emoji=True, no_progress=False):
         BaseReporter.__init__(self, verbose, silent, emoji, no_progress)
 
-    def list(self, title, items):
+    def list(self, title, items, hints={}):
         self._log_category("list", title, style=Fore.LIGHTMAGENTA_EX + Style.BRIGHT)
         gutter_width = (self._log_category_size or 2) - 1
         gutter = " " * gutter_width
-        for item in items:
-            self._log(f"{gutter}- {item}")
+        if len(hints.keys()) == len(items):
+            for item in items:
+                self._log(f"{gutter}- " + Style.BRIGHT + f"{item}" + Style.RESET_ALL)
+                hint = hints.get(item, None)
+                if hint:
+                    self._log(f" {gutter} " + Style.DIM + f"{hint}" + Style.RESET_ALL)
+        else:
+            for item in items:
+                self._log(f"{gutter}- {item}")
 
     def command(self, text):
         self.log(Style.DIM + f"$ {text}")
@@ -285,7 +292,7 @@ report = create_reporter()
 if __name__ == "__main__":
     import time
 
-    report.header("pyrnalist", version="0.0.5")
+    report.header("pyrnalist", version="0.0.6")
 
     report.info("Please wait while I fetch something for you.")
     report.warn("It might take a little while though.")
@@ -309,5 +316,16 @@ if __name__ == "__main__":
             report.warn("Interrupt.")
         time.sleep(0.25)
     report.success('🐣 Tjiep!')
+
+    report.list('My grocery list', ['bananas', 'tulips', 'eggs', 'bamischijf'])
+
+    items = ['bananas', 'tulips', 'eggs', 'bamischijf']
+    hints = {
+        'bananas': 'for baking',
+        'tulips': 'because it makes you happy',
+        'eggs': 'not the cheap ones though',
+        'bamischijf': 'if they have it',
+    }
+    report.list('My grocery list', items, hints)
 
     report.footer()
