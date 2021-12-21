@@ -292,7 +292,7 @@ report = create_reporter()
 if __name__ == "__main__":
     import time
 
-    report.header("pyrnalist", version="0.0.6")
+    report.header("pyrnalist", version="0.0.7")
 
     report.info("Please wait while I fetch something for you.")
     report.warn("It might take a little while though.")
