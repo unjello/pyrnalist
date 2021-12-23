@@ -257,7 +257,7 @@ class ConsoleReporter(BaseReporter):
         total_time = get_uptime()
         emoji = self._get_emoji("✨")
         emoji = f"{emoji} " if emoji else ""
-        self.log(f"{emoji}Done in {total_time}s")
+        self.log(f"{emoji}Done in {total_time:.4f}s")
 
     def info(self, text):
         self._log_category("info", text, style=Fore.BLUE)
@@ -275,7 +275,7 @@ class ConsoleReporter(BaseReporter):
 
     def _verbose(self, text):
         uptime = get_uptime()
-        self._log_category("verbose", f"{uptime} {text}", style=Style.DIM)
+        self._log_category("verbose", f"{uptime:.4f} {text}", style=Style.DIM)
 
     def _get_spinner(self):
         return ConsoleSpinner()
@@ -292,7 +292,12 @@ report = create_reporter()
 if __name__ == "__main__":
     import time
 
-    report.header("pyrnalist", version="0.0.7")
+    report.header("pyrnalist", version="0.0.8")
+
+    report.verbose("I")
+    report.verbose("am")
+    report.verbose("chatty")
+    report.verbose("❤️❤️❤️")
 
     report.info("Please wait while I fetch something for you.")
     report.warn("It might take a little while though.")
@@ -327,5 +332,6 @@ if __name__ == "__main__":
         'bamischijf': 'if they have it',
     }
     report.list('My grocery list', items, hints)
+    report.verbose("Is it really end?")
 
     report.footer()

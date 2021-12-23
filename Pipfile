@@ -9,5 +9,3 @@ psutil = ">=5.8"
 
 [dev-packages]
 
-[requires]
-python_version = "3.8"
