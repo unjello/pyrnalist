@@ -234,6 +234,14 @@ class ConsoleReporter(BaseReporter):
         else:
             for item in items:
                 self._log(f"{gutter}- {item}")
+    
+    def map(self, title, items):
+        self._log_category("map", title, style=Fore.LIGHTMAGENTA_EX + Style.BRIGHT)
+        gutter_width = (self._log_category_size or 2) - 1
+        gutter = " " * gutter_width
+        for item in items:
+            value = items.get(item, None)
+            self._log(f"{gutter}- " + Style.BRIGHT + f"{item}" + Style.DIM + f": {value}" + Style.RESET_ALL)
 
     def command(self, text):
         self.log(Style.DIM + f"$ {text}")
@@ -292,7 +300,9 @@ report = create_reporter()
 if __name__ == "__main__":
     import time
 
-    report.header("pyrnalist", version="0.0.8")
+    report.header("pyrnalist", version="0.0.9")
+
+    report.map('Config', {'verbose': True, 'quiet': False, 'level': 99, 'none': None})
 
     report.verbose("I")
     report.verbose("am")
