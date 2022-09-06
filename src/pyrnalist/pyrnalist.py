@@ -1,12 +1,12 @@
-from re import S
-from colorama import init, Style, Fore, Back, ansi
+from colorama import init, Style, Fore, ansi
 from datetime import datetime
 import os
 import sys
-import time
 import psutil
 import multiprocessing
 import ctypes
+import time
+import logging
 
 
 def get_start_time():
@@ -25,6 +25,7 @@ class NullSpinnerReporter:
 
     def end(self):
         pass
+
 
 class SpinnerReporter:
     def __init__(self, spinner, reporters):
@@ -70,6 +71,7 @@ SPINNERS = [
     "⣾⣽⣻⢿⡿⣟⣯⣷",
     "⠁⠂⠄⡀⢀⠠⠐⠈",
 ]
+BARS = [['#', '-']]
 
 
 def spinner_render_thread(id, delay, text):
@@ -85,12 +87,14 @@ def spinner_render_thread(id, delay, text):
 
 class ConsoleSpinner:
     def __init__(self):
+        self.__thread = None
         self.spinner_id = 28
         self.delay = 0.06
         self.manager = multiprocessing.Manager()
         self.text = self.manager.Value(ctypes.c_wchar_p, "")
 
     def start(self):
+        self.stop()
         self.__thread = multiprocessing.Process(
             target=spinner_render_thread,
             args=(
@@ -102,10 +106,12 @@ class ConsoleSpinner:
         self.__thread.start()
 
     def stop(self):
-        self.__thread.terminate()
+        if self.__thread:
+            self.__thread.terminate()
 
     def set_text(self, text):
         self.text.value = text
+
 
 def progress_render_thread(current, total, delay, chars):
     while True:
@@ -122,9 +128,10 @@ def progress_render_thread(current, total, delay, chars):
         print(f"\r{bar}", end="", flush=True)
         time.sleep(delay)
 
-BARS = [['#', '-']]
+
 class ProgressBar:
     def __init__(self, steps_count):
+        self.__thread = None
         self.total = steps_count
         self.delay = 0.06
         self.chars = BARS[0]
@@ -132,6 +139,7 @@ class ProgressBar:
         self.current = self.manager.Value(ctypes.c_int64, 0)
 
     def start(self):
+        self.stop()
         self.__thread = multiprocessing.Process(
             target=progress_render_thread,
             args=(
@@ -149,13 +157,13 @@ class ProgressBar:
         
         self.current.value += 1
 
-
     def stop(self):
-        self.__thread.terminate()
+        if self.__thread:
+            self.__thread.terminate()
 
 
 class BaseReporter:
-    def __init__(self, verbose=True, silent=False, emoji=True, no_progress=False):
+    def __init__(self, verbose=True, silent=False, emoji=True, no_progress=False, logging_handler=False):
         self.is_verbose = verbose
         self.is_silent = silent
         self.emoji = emoji
@@ -163,6 +171,15 @@ class BaseReporter:
         self._log_category_size = 0
         self._spinners = set()
         self._progress_bar = None
+        self.logging_handler = logging_handler
+        if self.logging_handler:
+            self._configure_logging_handler()
+
+    def _configure_logging_handler(self):
+        raise NotImplementedError('_configure_logging_handler must be implemented by sub-class')
+
+    def _verbose(self, text):
+        raise NotImplementedError('_verbose must be implemented by sub-class')
 
     def verbose(self, text):
         if self.is_verbose:
@@ -173,10 +190,10 @@ class BaseReporter:
             return NullSpinnerReporter()
 
         reporters = self._spinners
-        spinner = self._get_spinner()
-        spinner.start()
-        reporters.add(spinner)
-        return SpinnerReporter(spinner, reporters)
+        s = self._get_spinner()
+        s.start()
+        reporters.add(s)
+        return SpinnerReporter(s, reporters)
 
     def progress(self, steps_count):
         def null_progress_tick():
@@ -194,6 +211,9 @@ class BaseReporter:
         self._progress_bar.start()
 
         return lambda: self._progress_bar.tick()
+
+    def finished(self):
+        self._stop_progress()
 
     def _stop_progress(self):
         if self._progress_bar:
@@ -217,9 +237,36 @@ class BaseReporter:
         print(f"\r{ansi.clear_line() + text + Style.RESET_ALL}", file=out)
 
 
+class PyrnalistConsoleReporterHandler(logging.Handler):
+    def __init__(self, report):
+        logging.Handler.__init__(self)
+        self._report = report
+
+    def emit(self, record):
+        message = record.getMessage()
+        match record.levelno:
+            case logging.DEBUG:
+                self._report.verbose(message)
+            case logging.INFO:
+                self._report.info(message)
+            case logging.WARN:
+                self._report.warn(message)
+            case _:
+                self._report.error(message)
+
+
 class ConsoleReporter(BaseReporter):
-    def __init__(self, verbose=True, silent=False, emoji=True, no_progress=False):
-        BaseReporter.__init__(self, verbose, silent, emoji, no_progress)
+    def __init__(self, verbose=True, silent=False, emoji=True, no_progress=False, logging_handler=False):
+        BaseReporter.__init__(self, verbose, silent, emoji, no_progress, logging_handler)
+
+    def _configure_logging_handler(self):
+        level = logging.ERROR
+        if self.is_verbose:
+            level = logging.DEBUG
+        if self.is_silent:
+            level = logging.FATAL
+        handler = PyrnalistConsoleReporterHandler(self)
+        logging.basicConfig(level=level, handlers=[handler])
 
     def list(self, title, items, hints={}):
         self._log_category("list", title, style=Fore.LIGHTMAGENTA_EX + Style.BRIGHT)
@@ -289,18 +336,18 @@ class ConsoleReporter(BaseReporter):
         return ConsoleSpinner()
 
 
-def create_reporter(verbose=True, silent=False, emoji=True, no_progress=False):
+def create_reporter(verbose=True, silent=False, emoji=True, no_progress=False, logging_handler=False):
     init(autoreset=True)
-    return ConsoleReporter(verbose, silent, emoji, no_progress)
+    return ConsoleReporter(verbose, silent, emoji, no_progress, logging_handler)
 
 
-report = create_reporter()
+report = create_reporter(logging_handler=True)
 
 
 if __name__ == "__main__":
     import time
 
-    report.header("pyrnalist", version="0.0.9")
+    report.header("pyrnalist", version="0.1.0")
 
     report.map('Config', {'verbose': True, 'quiet': False, 'level': 99, 'none': None})
 
@@ -330,6 +377,7 @@ if __name__ == "__main__":
         if x % 5 == 0:
             report.warn("Interrupt.")
         time.sleep(0.25)
+    report.finished()
     report.success('🐣 Tjiep!')
 
     report.list('My grocery list', ['bananas', 'tulips', 'eggs', 'bamischijf'])
@@ -343,5 +391,8 @@ if __name__ == "__main__":
     }
     report.list('My grocery list', items, hints)
     report.verbose("Is it really end?")
+
+    logging.debug('logging.debug')
+    logging.critical('logging.critical')
 
     report.footer()

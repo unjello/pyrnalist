@@ -19,6 +19,7 @@ Yurnalist can be used to report many different things besides simple messages.
 * lists
 * program header & footer
 * progress bars
+* integration with logging module
 
 ### Missing features of Yournalist
 
@@ -42,7 +43,7 @@ Here is an example showing a combination of different reporter API functions.
 from pyrnalist import report
 import time
 
-report.header("pyrnalist", version="0.0.2")
+report.header("pyrnalist", version="0.1.0")
 
 report.info("Please wait while I fetch something for you.")
 report.warn("It might take a little while though.")
