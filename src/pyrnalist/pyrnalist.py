@@ -244,15 +244,14 @@ class PyrnalistConsoleReporterHandler(logging.Handler):
 
     def emit(self, record):
         message = record.getMessage()
-        match record.levelno:
-            case logging.DEBUG:
-                self._report.verbose(message)
-            case logging.INFO:
-                self._report.info(message)
-            case logging.WARN:
-                self._report.warn(message)
-            case _:
-                self._report.error(message)
+        if record.levelno == logging.DEBUG:
+            self._report.verbose(message)
+        elif record.levelno == logging.INFO:
+            self._report.info(message)
+        elif record.levelno == logging.WARN:
+            self._report.warn(message)
+        else:
+            self._report.error(message)
 
 
 class ConsoleReporter(BaseReporter):
