@@ -404,8 +404,6 @@ report = create_reporter()
 
 
 if __name__ == "__main__":
-    import time
-
     report.header("pyrnalist", version="0.1.0")
 
     report.map("Config", {"verbose": True, "quiet": False, "level": 99, "none": None})

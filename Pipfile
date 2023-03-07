@@ -6,6 +6,6 @@ name = "pypi"
 [packages]
 colorama = ">=0.4"
 psutil = ">=5.8"
+black = "*"
 
 [dev-packages]
-

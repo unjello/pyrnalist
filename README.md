@@ -12,22 +12,22 @@ Yurnalist can be used to report many different things besides simple messages.
 
 ### Features
 
-* log, info, warn, succes, error & command messages
-* activity spinners
-* emojis
-* process steps
-* lists
-* program header & footer
-* progress bars
-* integration with logging module
+- log, info, warn, succes, error & command messages
+- activity spinners
+- emojis
+- process steps
+- lists
+- program header & footer
+- progress bars
+- integration with logging module
 
 ### Missing features of Yournalist
 
-* object inspection
-* trees
-* tables
-* user question
-* user select
+- object inspection
+- trees
+- tables
+- user question
+- user select
 
 ## Install
 
@@ -60,13 +60,13 @@ spinner.end()
 
 steps = 15
 tick = report.progress(steps)
-report.info('🥚 Wait for it...')
+report.info("🥚 Wait for it...")
 for x in range(steps):
     tick()
     if x % 5 == 0:
         report.warn("Interrupt.")
     time.sleep(0.25)
-report.success('🐣 Tjiep!')
+report.success("🐣 Tjiep!")
 
 report.footer()
 ```
@@ -82,11 +82,14 @@ you an instance with different options.
 These are the options of the reporter as defined by Flow:
 
 ```python
-def create_reporter(
-    verbose=True, 
-    silent=False, 
-    emoji=True
-    ):
+create_reporter(
+    name="logger-name",
+    verbose=True,
+    silent=False,
+    emoji=True,
+    no_progress=False,
+    logging_handler=True,
+)
 ```
 
 ## Credits
