@@ -43,7 +43,7 @@ Here is an example showing a combination of different reporter API functions.
 from pyrnalist import report
 import time
 
-report.header("pyrnalist", version="0.1.0")
+report.header("pyrnalist", version="0.1.1")
 
 report.info("Please wait while I fetch something for you.")
 report.warn("It might take a little while though.")

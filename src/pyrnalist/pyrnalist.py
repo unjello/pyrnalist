@@ -404,7 +404,7 @@ report = create_reporter()
 
 
 if __name__ == "__main__":
-    report.header("pyrnalist", version="0.1.0")
+    report.header("pyrnalist", version="0.1.1")
 
     report.map("Config", {"verbose": True, "quiet": False, "level": 99, "none": None})
 
