@@ -1,12 +1,13 @@
-from colorama import init, Style, Fore, ansi
-from datetime import datetime
+import ctypes
+import logging
+import multiprocessing
 import os
 import sys
-import psutil
-import multiprocessing
-import ctypes
 import time
-import logging
+from datetime import datetime
+
+import psutil
+from colorama import Fore, Style, ansi, init
 
 
 def get_start_time():
@@ -71,7 +72,7 @@ SPINNERS = [
     "⣾⣽⣻⢿⡿⣟⣯⣷",
     "⠁⠂⠄⡀⢀⠠⠐⠈",
 ]
-BARS = [['#', '-']]
+BARS = [["#", "-"]]
 
 
 def spinner_render_thread(id, delay, text):
@@ -118,13 +119,13 @@ def progress_render_thread(current, total, delay, chars):
         columns = os.get_terminal_size().columns
         ratio = current.value / total
         ratio = min(max(ratio, 0), 1)
-        stat = f' {current.value}/{total}'
+        stat = f" {current.value}/{total}"
         available_space = max(0, columns - len(stat) - 3)
         width = min(total, available_space)
         complete_length = round(width * ratio)
         complete = chars[0] * complete_length
         incomplete = chars[1] * (width - complete_length)
-        bar = f'[{complete}{incomplete}]{stat}'
+        bar = f"[{complete}{incomplete}]{stat}"
         print(f"\r{bar}", end="", flush=True)
         time.sleep(delay)
 
@@ -142,19 +143,14 @@ class ProgressBar:
         self.stop()
         self.__thread = multiprocessing.Process(
             target=progress_render_thread,
-            args=(
-                self.current,
-                self.total,
-                self.delay,
-                self.chars
-            ),
+            args=(self.current, self.total, self.delay, self.chars),
         )
         self.__thread.start()
 
     def tick(self):
         if self.current.value >= self.total:
             return
-        
+
         self.current.value += 1
 
     def stop(self):
@@ -163,7 +159,16 @@ class ProgressBar:
 
 
 class BaseReporter:
-    def __init__(self, verbose=True, silent=False, emoji=True, no_progress=False, logging_handler=False):
+    def __init__(
+        self,
+        name=None,
+        verbose=True,
+        silent=False,
+        emoji=True,
+        no_progress=False,
+        logging_handler=False,
+    ):
+        self.name = name
         self.is_verbose = verbose
         self.is_silent = silent
         self.emoji = emoji
@@ -175,11 +180,24 @@ class BaseReporter:
         if self.logging_handler:
             self._configure_logging_handler()
 
+    def create_reporter(self, name=None):
+        new_name = ".".join([x for x in [self.name, name] if x])
+        return self.__class__(
+            name=new_name if new_name else None,
+            verbose=self.is_verbose,
+            silent=self.is_silent,
+            emoji=self.emoji,
+            no_progress=self.no_progess,
+            logging_handler=False,
+        )
+
     def _configure_logging_handler(self):
-        raise NotImplementedError('_configure_logging_handler must be implemented by sub-class')
+        raise NotImplementedError(
+            "_configure_logging_handler must be implemented by sub-class"
+        )
 
     def _verbose(self, text):
-        raise NotImplementedError('_verbose must be implemented by sub-class')
+        raise NotImplementedError("_verbose must be implemented by sub-class")
 
     def verbose(self, text):
         if self.is_verbose:
@@ -255,8 +273,18 @@ class PyrnalistConsoleReporterHandler(logging.Handler):
 
 
 class ConsoleReporter(BaseReporter):
-    def __init__(self, verbose=True, silent=False, emoji=True, no_progress=False, logging_handler=False):
-        BaseReporter.__init__(self, verbose, silent, emoji, no_progress, logging_handler)
+    def __init__(
+        self,
+        name=None,
+        verbose=True,
+        silent=False,
+        emoji=True,
+        no_progress=False,
+        logging_handler=False,
+    ):
+        BaseReporter.__init__(
+            self, name, verbose, silent, emoji, no_progress, logging_handler
+        )
 
     def _configure_logging_handler(self):
         level = logging.ERROR
@@ -280,14 +308,21 @@ class ConsoleReporter(BaseReporter):
         else:
             for item in items:
                 self._log(f"{gutter}- {item}")
-    
+
     def map(self, title, items):
         self._log_category("map", title, style=Fore.LIGHTMAGENTA_EX + Style.BRIGHT)
         gutter_width = (self._log_category_size or 2) - 1
         gutter = " " * gutter_width
         for item in items:
             value = items.get(item, None)
-            self._log(f"{gutter}- " + Style.BRIGHT + f"{item}" + Style.DIM + f": {value}" + Style.RESET_ALL)
+            self._log(
+                f"{gutter}- "
+                + Style.BRIGHT
+                + f"{item}"
+                + Style.DIM
+                + f": {value}"
+                + Style.RESET_ALL
+            )
 
     def command(self, text):
         self.log(Style.DIM + f"$ {text}")
@@ -296,8 +331,16 @@ class ConsoleReporter(BaseReporter):
         self._log_category("success", text, style=Fore.GREEN)
 
     def error(self, text):
+        name = f"[ {self.name}]" if self.name else ""
         print(
-            ansi.clear_line() + Fore.RED + "error" + Fore.RESET + f" {text}",
+            ansi.clear_line()
+            + Fore.RED
+            + "error"
+            + Fore.RESET
+            + Style.DIM
+            + name
+            + Style.RESET_ALL
+            + f" {text}",
             file=sys.stderr,
         )
 
@@ -325,7 +368,16 @@ class ConsoleReporter(BaseReporter):
 
     def _log_category(self, category, text, style):
         self._log_category_size = len(category)
-        self._log(style + category + Style.RESET_ALL + f" {text}")
+        name = f" [{self.name}]" if self.name else ""
+        self._log(
+            style
+            + category
+            + Style.RESET_ALL
+            + Style.DIM
+            + name
+            + Style.RESET_ALL
+            + f" {text}"
+        )
 
     def _verbose(self, text):
         uptime = get_uptime()
@@ -335,12 +387,20 @@ class ConsoleReporter(BaseReporter):
         return ConsoleSpinner()
 
 
-def create_reporter(verbose=True, silent=False, emoji=True, no_progress=False, logging_handler=False):
+def create_reporter(
+    *,
+    name=None,
+    verbose=True,
+    silent=False,
+    emoji=True,
+    no_progress=False,
+    logging_handler=True,
+):
     init(autoreset=True)
-    return ConsoleReporter(verbose, silent, emoji, no_progress, logging_handler)
+    return ConsoleReporter(name, verbose, silent, emoji, no_progress, logging_handler)
 
 
-report = create_reporter(logging_handler=True)
+report = create_reporter()
 
 
 if __name__ == "__main__":
@@ -348,12 +408,18 @@ if __name__ == "__main__":
 
     report.header("pyrnalist", version="0.1.0")
 
-    report.map('Config', {'verbose': True, 'quiet': False, 'level': 99, 'none': None})
+    report.map("Config", {"verbose": True, "quiet": False, "level": 99, "none": None})
 
     report.verbose("I")
     report.verbose("am")
     report.verbose("chatty")
     report.verbose("❤️❤️❤️")
+
+    subreport = report.create_reporter("rabbit")
+    subreport.verbose("Hello from sub reporter")
+
+    subreport2 = subreport.create_reporter("hole")
+    subreport2.info("How deep it goes?")
 
     report.info("Please wait while I fetch something for you.")
     report.warn("It might take a little while though.")
@@ -370,28 +436,28 @@ if __name__ == "__main__":
 
     steps = 15
     tick = report.progress(steps)
-    report.info('🥚 Wait for it...')
+    report.info("🥚 Wait for it...")
     for x in range(steps):
         tick()
         if x % 5 == 0:
             report.warn("Interrupt.")
         time.sleep(0.25)
     report.finished()
-    report.success('🐣 Tjiep!')
+    report.success("🐣 Tjiep!")
 
-    report.list('My grocery list', ['bananas', 'tulips', 'eggs', 'bamischijf'])
+    report.list("My grocery list", ["bananas", "tulips", "eggs", "bamischijf"])
 
-    items = ['bananas', 'tulips', 'eggs', 'bamischijf']
+    items = ["bananas", "tulips", "eggs", "bamischijf"]
     hints = {
-        'bananas': 'for baking',
-        'tulips': 'because it makes you happy',
-        'eggs': 'not the cheap ones though',
-        'bamischijf': 'if they have it',
+        "bananas": "for baking",
+        "tulips": "because it makes you happy",
+        "eggs": "not the cheap ones though",
+        "bamischijf": "if they have it",
     }
-    report.list('My grocery list', items, hints)
+    report.list("My grocery list", items, hints)
     report.verbose("Is it really end?")
 
-    logging.debug('logging.debug')
-    logging.critical('logging.critical')
+    logging.debug("logging.debug")
+    logging.critical("logging.critical")
 
     report.footer()
